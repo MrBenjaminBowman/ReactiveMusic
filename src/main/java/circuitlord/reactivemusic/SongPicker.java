@@ -21,6 +21,7 @@ import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.entity.vehicle.MinecartEntity;
 
 //import net.minecraft.registry.tag.BiomeTags;
+import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.math.BlockPos;
@@ -39,8 +40,8 @@ public final class SongPicker {
 
     public static Map<TagKey<Biome>, Boolean> biomeTagEventMap = new HashMap<>();
 
-    // This can probably be done differently (I'm tired, boss...)
-    public static Map<EntityType<?>, Boolean> entityEventMap = new HashMap<>();
+    //    public static Map<EntityType<?>, Integer> entityEventMap = new HashMap<>();
+    public static Map<Entity, Integer> entityEventMap = new HashMap<>();
     
     public static Map<Entity, Long> recentEntityDamageSources = new HashMap<>();
 
@@ -173,18 +174,15 @@ public final class SongPicker {
         }
 
 
-
-
         // Search for nearby entities that could be relevant to music
 
         {
             int villagerCount = 0;
 
-            double radiusXZ = 30.0;
-            double radiusY = 15.0;
+            float radiusXZ = 30.0f;
+            float radiusY = 15.0f;
 
-            Box box = new Box(player.getX() - radiusXZ, player.getY() - radiusY, player.getZ() - radiusXZ,
-                    player.getX() + radiusXZ, player.getY() + radiusY, player.getZ() + radiusXZ);
+            Box box = GetBoxAroundPlayer(player, radiusXZ, radiusY);
 
             List<VillagerEntity> nearbyVillagerCheck = world.getEntitiesByClass(VillagerEntity.class, box, entity -> entity != null);
 
@@ -202,16 +200,15 @@ public final class SongPicker {
             entityEventMap.clear();
             //int entityCount = 0;
 
-            double radiusXZ = 30.0;
-            double radiusY = 15.0;
-            // This might as well be GetBoxAroundPlayer
-            Box box = new Box(player.getX() - radiusXZ, player.getY() - radiusY, player.getZ() - radiusXZ,
-                    player.getX() + radiusXZ, player.getY() + radiusY, player.getZ() + radiusXZ);
+            float radiusXZ = 30.0f;
+            float radiusY = 15.0f;
+
+            Box box = GetBoxAroundPlayer(player, radiusXZ, radiusY);
 
             List<MobEntity> nearbyEntityCheck = mc.world.getEntitiesByClass(MobEntity.class, box, entity -> entity != null);
 
             for (MobEntity entity : nearbyEntityCheck) {
-                entityEventMap.put(entity.getType(), nearbyEntityCheck.size() >= 1);
+                entityEventMap.put(entity, nearbyEntityCheck.size());
                 // ReactiveMusic.LOGGER.info("Entity type: " + String.valueOf(entity.getType()));
             }
         }
@@ -339,8 +336,10 @@ public final class SongPicker {
                 }
             }
 
-            for (EntityType<?> entityEvent : entry.entityEvents) {
-                if (!entityEventMap.containsKey(entityEvent))
+            // for (EntityType<?> entityEvent : entry.entityEvents) {
+            for (Map<String, Object> entityEvent : entry.entityEvents) {
+                // Compiler thinks this line is sus
+                if (!entityEventMap.containsKey(entityEvent.get("type")))
                 {
                     //continue;
                 //if (!entityEventMap.get(entityEvent)) {

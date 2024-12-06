@@ -23,7 +23,8 @@ entries:
 #      - "CircleOfLife"
 
 #   TODO: check if this works with modded mobs as well (with modname:mobname)
-  - events: ["ENTITY=zombie"]
+  #- events: ["ENTITY=zombie"]
+  - events: ["ENTITY=[type=zombie,distance=10,nbt={IsBaby:true}]"]
     alwaysPlay: true
     alwaysStop: true
     songs:

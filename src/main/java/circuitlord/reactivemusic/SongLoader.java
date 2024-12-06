@@ -1,7 +1,12 @@
 	package circuitlord.reactivemusic;
 
+    import com.mojang.brigadier.exceptions.CommandSyntaxException;
     import net.fabricmc.loader.api.FabricLoader;
+    import net.minecraft.client.MinecraftClient;
+    import net.minecraft.entity.Entity;
     import net.minecraft.entity.EntityType;
+    import net.minecraft.nbt.NbtCompound;
+    import net.minecraft.nbt.StringNbtReader;
     import net.minecraft.world.biome.Biome;
     import org.yaml.snakeyaml.Yaml;
 
@@ -243,20 +248,60 @@
                             if (foundTag) continue;
                         }
 			
-			// try to figure out if it's an entity=
+                        // try to figure out if it's an entity=
                         if (val.startsWith("entity=")) {
-                            String entityName = val.substring(7);
+                            // Split up the string, example:
+                            // ENTITY=[type=zombie,distance=10,nbt={OnGround:true}]
+                            // ENTITY=[ | type=zombie | distance=10 | nbt={OnGround:true} | ]
+                            List<String> entityData = Arrays.asList(val.substring(8,val.length()-1).split(","));
 
-                            boolean foundEntityType = false;
-                            var entityType = EntityType.get(entityName);
-                            // Check if an EntityType of entityName exists
-                            if (EntityType.get(entityName).isPresent()) {
-                                songpack.entries[i].entityEvents.add(entityType.get());
-                                foundEntityType = true;
+                            // Possible datapoints to extract
+                            boolean foundType = false, foundDistance = false, foundNbt = false;
+                            Map<String, Object> entityMap = new HashMap<>();
+
+                            ReactiveMusic.LOGGER.info("Entity Data: " + entityData.toString());
+
+                            for(String data : entityData)
+                            {
+                                if (data.startsWith("type=")) {
+                                    var entityType = EntityType.get(data.substring(5));
+                                    if (entityType.isPresent()) {
+                                        entityMap.put("type", entityType.get());
+                                        foundType = true;
+                                    }
+                                }
+
+                                if (data.startsWith("distance=")) {
+                                    double distance;
+                                    try {
+                                        distance = Double.parseDouble(data.substring(9));
+                                        entityMap.put("distance", distance);
+                                        foundDistance = true;
+                                    } catch (NumberFormatException | NullPointerException e) {
+                                        songpack.errorString += "Could not parse entity distance\n";
+                                    }
+                                }
+
+                                if (data.startsWith("nbt=")) {
+                                    String NbtString = data.substring(4,data.length());
+                                    NbtCompound entityNbt = new NbtCompound();
+                                    try {
+                                        entityNbt = StringNbtReader.parse(NbtString);
+                                    } catch (CommandSyntaxException e) {
+                                        songpack.errorString += "Could not parse nbt: " + NbtString + "\n";
+                                    }
+                                    if (!entityNbt.isEmpty()) {
+                                        entityMap.put("nbt", entityNbt);
+                                        foundNbt = true;
+                                    }
+                                }
                             }
-
-                            // go to next event
-                            if (foundEntityType) continue;
+                            // Register the entityEvent with the above
+                            if (foundType || foundNbt || foundDistance) {
+                                songpack.entries[i].entityEvents.add(entityMap);
+                                // go to next event
+                                continue;
+                            }
                         }
 
                         // last case -- try casting to songpack event enum
